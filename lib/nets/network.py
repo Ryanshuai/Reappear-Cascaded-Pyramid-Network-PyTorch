@@ -1,7 +1,4 @@
 import base_model
-import layer_utils
-import torch.nn as nn
-import torch
 from global_refine_net import *
 
 class CPN(nn.Module):

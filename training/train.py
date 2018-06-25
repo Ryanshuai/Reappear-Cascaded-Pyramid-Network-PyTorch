@@ -34,11 +34,22 @@ class AverageMeter(object):
 def parse():
 
     parser = argparse.ArgumentParser()
+
+    parser.add_argument('--data_root', default='/root/Desktop/data',
+                        nargs='+', type=str, dest='train_dir', help='the path of train file')
+    parser.add_argument('--train_txt', default='/txt/merged_txt/20180607_train_930k_3_1_10.txt',
+                        nargs='+', type=str, dest='train_txt', help='the path of train file')
+    parser.add_argument('--val_txt', default='/txt/merged_txt/20180607_valid_1k.txt',
+                        nargs='+', type=str, dest='val_txt', help='the path of val file')
+
+    parser.add_argument('--gpu', default=[0], nargs='+', type=int,
+                        dest='gpu', help='the gpu used')
+    parser.add_argument('--pretrained', default=None,type=str,
+                        dest='pretrained', help='the path of pretrained model')
     parser.add_argument('--output_shape', type=list, default=[80, 80],
                         dest='output_shape', help='')
     parser.add_argument('--input_shape', type=list, default=[320, 320],
                         dest='input_shape', help='')
-
     parser.add_argument('--batch_size', type=int, default=30,
                         dest='batch_size', help='')
     parser.add_argument('--num_points', type=int, default=24,
@@ -61,16 +72,6 @@ def parse():
                         dest='momentum', help='')
     parser.add_argument('--start_iters', type=int, default=0,
                         dest='start_iters', help='')
-    parser.add_argument('--gpu', default=[0], nargs='+', type=int,
-                        dest='gpu', help='the gpu used')
-    parser.add_argument('--pretrained', default=None,type=str,
-                        dest='pretrained', help='the path of pretrained model')
-    parser.add_argument('--root', default=None, type=str,
-                        dest='root', help='the root of images')
-    parser.add_argument('--train_dir', nargs='+', type=str,
-                        dest='train_dir', help='the path of train file')
-    parser.add_argument('--val_dir', default=None, nargs='+', type=str,
-                        dest='val_dir', help='the path of val file')
 
     return parser.parse_args()
 
@@ -112,14 +113,14 @@ def get_parameters(model, args, isdefault=True):
     return params, [1., 2.]
 
 def train_val(model, args):
-
-    traindir = args.train_dir
-    valdir = args.val_dir
+    data_root = args.data_root
+    train_txt = data_root+args.train_txt
+    val_txt = data_root+args.val_txt
 
     cudnn.benchmark = True
     
     train_loader = torch.utils.data.DataLoader(
-            CPNFolder(traindir, args.output_shape,
+            CPNFolder(train_txt, args.output_shape,
                 Mytransforms.Compose([Mytransforms.RandomResized(),
                 Mytransforms.RandomRotate(40),
                 Mytransforms.RandomCrop(320),
@@ -130,7 +131,7 @@ def train_val(model, args):
 
     if args.test_interval != 0 and args.val_dir is not None:
         val_loader = torch.utils.data.DataLoader(
-                CPNFolder(valdir, args.output_shape,
+                CPNFolder(val_txt, args.output_shape,
                     Mytransforms.Compose([Mytransforms.TestResized(320),
                 ])),
                 batch_size=args.batch_size, shuffle=False,
