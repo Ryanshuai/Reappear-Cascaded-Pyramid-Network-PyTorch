@@ -36,7 +36,7 @@ def parse():
     parser = argparse.ArgumentParser()
 
     parser.add_argument('--data_root', default='/root/Desktop/data',
-                        nargs='+', type=str, dest='train_dir', help='the path of train file')
+                        nargs='+', type=str, dest='data_root', help='the path of train file')
     parser.add_argument('--train_txt', default='/txt/merged_txt/20180607_train_930k_3_1_10.txt',
                         nargs='+', type=str, dest='train_txt', help='the path of train file')
     parser.add_argument('--val_txt', default='/txt/merged_txt/20180607_valid_1k.txt',
@@ -75,7 +75,7 @@ def parse():
 
     return parser.parse_args()
 
-def construct_model(args):
+def construct_model(args, device):
 
     if args.pretrained is not None:
         model = CPN(args.output_shape, args.num_points, pretrained=False)
@@ -91,9 +91,9 @@ def construct_model(args):
         model.load_state_dict(state_dict)
     else:
         model = CPN(args.output_shape, args.num_points)
-    model = torch.nn.DataParallel(model, device_ids=args.gpu).cuda()
+    model = torch.nn.DataParallel(model, device_ids=args.gpu)
 
-    return model
+    return model.to(device)
 
 def get_parameters(model, args, isdefault=True):
 
@@ -112,7 +112,7 @@ def get_parameters(model, args, isdefault=True):
 
     return params, [1., 2.]
 
-def train_val(model, args):
+def train_val(model,device, args):
     data_root = args.data_root
     train_txt = data_root+args.train_txt
     val_txt = data_root+args.val_txt
@@ -129,7 +129,7 @@ def train_val(model, args):
             batch_size=args.batch_size, shuffle=True,
             num_workers=args.workers, pin_memory=True)
 
-    if args.test_interval != 0 and args.val_dir is not None:
+    if args.test_interval != 0 and args.val_txt is not None:
         val_loader = torch.utils.data.DataLoader(
                 CPNFolder(val_txt, args.output_shape,
                     Mytransforms.Compose([Mytransforms.TestResized(320),
@@ -150,7 +150,6 @@ def train_val(model, args):
     
     end = time.time()
     iters = args.start_iters
-    best_model = args.best_model
     learning_rate = args.base_lr
 
     model.train()
@@ -162,11 +161,11 @@ def train_val(model, args):
             #learning_rate = adjust_learning_rate(optimizer, iters, args.base_lr, policy=args.lr_policy, policy_parameter=args.policy_parameter, multiple=multiple)
             data_time.update(time.time() - end)
 
-            label15 = label15.cuda(async=True)
-            label11 = label11.cuda(async=True)
-            label9 = label9.cuda(async=True)
-            label7 = label7.cuda(async=True)
-            valid = valid.cuda(async=True)
+            label15 = label15.to(device)
+            label11 = label11.to(device)
+            label9 = label9.to(device)
+            label7 = label7.to(device)
+            valid = valid.to(device)
 
             labels = [label15, label11, label9, label7]
 
@@ -218,11 +217,11 @@ def train_val(model, args):
                 model.eval()
                 for j, (input, label15, label11, label9, label7, valid) in enumerate(val_loader):
                     
-                    label15 = label15.cuda(async=True)
-                    label11 = label11.cuda(async=True)
-                    label9 = label9.cuda(async=True)
-                    label7 = label7.cuda(async=True)
-                    valid = valid.cuda(async=True)
+                    label15 = label15.to(device)
+                    label11 = label11.to(device)
+                    label9 = label9.to(device)
+                    label7 = label7.to(device)
+                    valid = valid.to(device)
         
                     labels = [label15, label11, label9, label7]
         
@@ -272,5 +271,6 @@ if __name__ == '__main__':
 
     os.environ['CUDA_VISIBLE_DEVICES'] = '2,3'
     args = parse()
-    model = construct_model(args)
-    train_val(model, args)
+    device = torch.device("cuda")
+    model = construct_model(args, device)
+    train_val(model, device, args)

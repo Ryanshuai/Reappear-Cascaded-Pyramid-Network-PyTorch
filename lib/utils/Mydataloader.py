@@ -11,7 +11,8 @@ def read_img_json_path_txt(txt_path:str):
         line = fr.readline()
         while line:
             line = line.strip()
-            img_path, json_path = line.split()
+            img_path = line.split()[0]
+            json_path = line.split()[1]
             img_json_path_list.append([img_path, json_path])
             line = fr.readline()
 
@@ -182,7 +183,11 @@ class CPNFolder(data.Dataset):
         img_path = self.img_json_path_list[index][0]
         json_path = self.img_json_path_list[index][1]
 
+        print(img_path)
+        print('-----------------------')
+
         img = np.array(cv2.imread(img_path), dtype=np.float32)
+        print(img.shape)
 
         img_height, img_width, _ = img.shape
 
